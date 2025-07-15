@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jarvis Web HUD with Gemini AI Only</title>
+    <style>
+        body {
+            background-color: #050505;
+            color: #00FF00; /* Neon Green */
+            font-family: 'Consolas', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden; /* Hide scrollbars if content overflows */
+        }
+
+        .hud-container {
+            width: 800px;
+            height: 600px;
+            position: relative;
+            border: 2px solid #00AABB;
+            box-shadow: 0 0 10px #00FFFF;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+            background-color: rgba(0, 0, 0, 0.2); /* Slightly transparent for background effects */
+        }
+
+        .hud-border-inner {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            right: 30px;
+            bottom: 30px;
+            border: 1px solid #006677;
+        }
+
+        .corner-accent {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-color: #00FFFF;
+            border-style: solid;
+            border-width: 0;
+        }
+        .corner-accent.top-left { top: 20px; left: 20px; border-top-width: 2px; border-left-width: 2px; }
+        .corner-accent.top-right { top: 20px; right: 20px; border-top-width: 2px; border-right-width: 2px; }
+        .corner-accent.bottom-left { bottom: 20px; left: 20px; border-bottom-width: 2px; border-left-width: 2px; }
+        .corner-accent.bottom-right { bottom: 20px; right: 20px; border-bottom-width: 2px; border-right-width: 2px; }
+
+        .jarvis-title {
+            color: #00DDFF;
+            font-size: 24px;
+            font-weight: bold;
+            position: absolute;
+            top: 45px; /* Adjust based on border */
+            left: 50%;
+            transform: translateX(-50%);
+            animation: flicker 0.3s infinite alternate; /* Simple flicker */
+            z-index: 10;
+        }
+        .jarvis-title::after {
+            content: '';
+            display: block;
+            width: 140px; /* 70*2 */
+            height: 1px;
+            background-color: #007777;
+            margin: 5px auto 0;
+        }
+
+        .status-display {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00FFFF;
+            text-align: center;
+            position: absolute;
+            top: 80px; /* Adjust position */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 700px;
+            z-index: 5;
+        }
+
+        .data-readouts {
+            position: absolute;
+            top: 100px;
+            left: 80px;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #00FF00;
+        }
+
+        .console-output {
+            width: calc(100% - 60px); /* Account for padding/borders */
+            height: 120px;
+            background-color: #0d0d0d;
+            color: #00FF00;
+            border: none;
+            resize: none;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            padding: 10px;
+            box-sizing: border-box;
+            position: absolute;
+            bottom: 30px; /* Position it at the bottom */
+            left: 30px;
+            overflow-y: scroll;
+        }
+
+        .central-animation-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 250px; /* Size for the central animation */
+            height: 250px;
+            border-radius: 50%;
+            border: 2px solid rgba(0, 255, 255, 0.3); /* Faint ring */
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+        }
+
+        /* State-based animations (simplified) */
+        .listening-animation, .speaking-animation, .processing-animation {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.8;
+            transition: all 0.1s ease-out;
+            z-index: 3;
+        }
+        .listening-animation {
+            width: 100px;
+            height: 100px;
+            border: 3px solid #00FF00;
+            animation: pulse 1s infinite alternate;
+        }
+        .speaking-animation {
+            width: 80px;
+            height: 80px;
+            background-color: #00FFFF;
+            animation: bounce 0.5s infinite;
+        }
+        .processing-animation {
+            width: 90px;
+            height: 90px;
+            border: 4px dotted #FFD700;
+            animation: rotate 2s infinite linear;
+        }
+        .sleeping-animation {
+            width: 20px;
+            height: 20px;
+            background-color: #00AAFF;
+            border-radius: 50%;
+            opacity: 0.5;
+            animation: fade 2s infinite alternate;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 3;
+        }
+
+
+        /* Keyframe Animations */
+        @keyframes flicker {
+            0%, 100% { opacity: 1; text-shadow: 0 0 5px #00DDFF; }
+            50% { opacity: 0.8; text-shadow: none; }
+        }
+
+        @keyframes pulse {
+            from { transform: scale(0.8); opacity: 0.6; }
+            to { transform: scale(1.2); opacity: 1; }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        @keyframes fade {
+            from { opacity: 0.2; }
+            to { opacity: 0.8; }
+        }
+
+        /* Voice Selection Styles */
+        .voice-controls {
+            position: absolute;
+            top: 100px;
+            right: 80px;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        .voice-controls label {
+            font-size: 14px;
+            margin-bottom: 5px;
+            color: #00AAFF;
+        }
+        .voice-controls select {
+            background-color: #0d0d0d;
+            color: #00FF00;
+            border: 1px solid #00AAFF;
+            padding: 5px;
+            font-family: 'Consolas', monospace;
+            font-size: 12px;
+            width: 180px; /* Fixed width for consistency */
+            -webkit-appearance: none; /* Remove default dropdown arrow on WebKit browsers */
+            -moz-appearance: none; /* Remove default dropdown arrow on Firefox */
+            appearance: none; /* Remove default dropdown arrow */
+            background-image: url('data:image/svg+xml;utf8,<svg fill="%2300FF00" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>'); /* Custom arrow */
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            background-size: 16px;
+            cursor: pointer;
+        }
+        .voice-controls select:focus {
+            outline: none;
+            border-color: #00FFFF;
+            box-shadow: 0 0 5px #00FFFF;
+        }
+        .voice-controls option {
+            background-color: #1a1a1a; /* Darker option background */
+            color: #00FF00;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="hud-container">
+        <div class="hud-border-inner"></div>
+
+        <div class="corner-accent top-left"></div>
+        <div class="corner-accent top-right"></div>
+        <div class="corner-accent bottom-left"></div>
+        <div class="corner-accent bottom-right"></div>
+
+        <div class="jarvis-title">JARVIS SYSTEM</div>
+
+        <div class="status-display" id="statusDisplay">Jarvis Web Initializing...</div>
+
+        <div class="data-readouts">
+            <div id="cpuReadout">CPU: 0%</div>
+            <div id="ramReadout">RAM: 0%</div>
+            <div id="netReadout">NET: 0Kb/s</div>
+            <div id="dateTimeReadout"></div>
+        </div>
+
+        <div class="voice-controls">
+            <label for="voiceSelect">Select Voice:</label>
+            <select id="voiceSelect"></select>
+        </div>
+
+
+        <div class="central-animation-container">
+            <div id="stateAnimation" class="sleeping-animation"></div>
+        </div>
+
+        <textarea id="consoleOutput" class="console-output" readonly></textarea>
+    </div>
+
+    <script>
+        const statusDisplay = document.getElementById('statusDisplay');
+        const consoleOutput = document.getElementById('consoleOutput');
+        const cpuReadout = document.getElementById('cpuReadout');
+        const ramReadout = document.getElementById('ramReadout');
+        const netReadout = document.getElementById('netReadout');
+        const dateTimeReadout = document.getElementById('dateTimeReadout');
+        const stateAnimation = document.getElementById('stateAnimation');
+        const voiceSelect = document.getElementById('voiceSelect');
+
+        // --- Configuration for Backend Endpoints ---
+        // IMPORTANT: If your Flask server is running on a different port or host,
+        // update this BASE_URL. For local development, this is typical.
+        const BACKEND_BASE_URL = "http://127.0.0.1:5000"; // Flask default port
+
+        let currentState = "sleeping";
+        let currentVoice = null; // Store the selected SpeechSynthesisVoice object
+
+        function logToConsole(message) {
+            const timestamp = new Date().toLocaleTimeString('en-US', { hour12: false });
+            consoleOutput.value += `[${timestamp}] ${message}\n`;
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        function updateGUI(message, state = "idle") {
+            statusDisplay.textContent = message;
+            currentState = state;
+            logToConsole(message);
+            updateStateAnimation();
+        }
+
+        function updateStateAnimation() {
+            stateAnimation.className = '';
+            stateAnimation.style.display = 'block';
+
+            switch (currentState) {
+                case 'listening':
+                    stateAnimation.classList.add('listening-animation');
+                    break;
+                case 'speaking':
+                    stateAnimation.classList.add('speaking-animation');
+                    break;
+                case 'processing':
+                    stateAnimation.classList.add('processing-animation');
+                    break;
+                case 'sleeping':
+                    stateAnimation.classList.add('sleeping-animation');
+                    break;
+                case 'error':
+                    stateAnimation.style.display = 'none';
+                    statusDisplay.style.color = '#FF0000';
+                    break;
+                default:
+                    stateAnimation.style.display = 'none';
+                    statusDisplay.style.color = '#00FFFF';
+                    break;
+            }
+        }
+
+        // --- Speech Recognition & Synthesis (Web Speech API) ---
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const SpeechSynthesis = window.speechSynthesis;
+
+        let recognition;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = false;
+            recognition.lang = 'en-IN'; // Set a default language for recognition
+
+            recognition.onstart = () => {
+                updateGUI("Listening for command...", "listening");
+            };
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript.toLowerCase();
+                updateGUI(`User said: ${transcript}`, "idle");
+                handleCommand(transcript);
+            };
+
+            recognition.onerror = (event) => {
+                updateGUI(`Speech recognition error: ${event.error}`, "error");
+                console.error('Speech recognition error', event.error);
+                setTimeout(listenForWakeWord, 2000);
+            };
+
+            recognition.onend = () => {
+                if (currentState !== "speaking" && currentState !== "processing") {
+                    updateGUI("Ready for command...", "idle");
+                    setTimeout(listenForWakeWord, 500);
+                }
+            };
+
+        } else {
+            updateGUI("Web Speech API not supported in this browser.", "error");
+        }
+
+        function populateVoiceList() {
+            const voices = SpeechSynthesis.getVoices();
+            voiceSelect.innerHTML = '';
+
+            if (voices.length === 0) {
+                logToConsole("No speech synthesis voices available.");
+                const option = document.createElement('option');
+                option.textContent = "No voices found";
+                voiceSelect.appendChild(option);
+                voiceSelect.disabled = true;
+                return;
+            }
+
+            let defaultVoiceIndex = 0;
+
+            voices.forEach((voice, index) => {
+                const option = document.createElement('option');
+                option.textContent = `${voice.name} (${voice.lang})`;
+                option.setAttribute('data-name', voice.name);
+                option.value = voice.name;
+
+                if (voice.lang.startsWith('en') && voice.default) {
+                    defaultVoiceIndex = index;
+                } else if (voice.lang === 'en-US' && !voices[defaultVoiceIndex].default) {
+                    defaultVoiceIndex = index;
+                } else if (voice.lang === 'en-GB' && !voices[defaultVoiceIndex].default && voices[defaultVoiceIndex].lang !== 'en-US') {
+                    defaultVoiceIndex = index;
+                } else if (voice.lang === 'en-IN' && !voices[defaultVoiceIndex].default && voices[defaultVoiceIndex].lang !== 'en-US' && voices[defaultVoiceIndex].lang !== 'en-GB') {
+                    defaultVoiceIndex = index;
+                }
+                voiceSelect.appendChild(option);
+            });
+
+            if (voices.length > 0) {
+                voiceSelect.selectedIndex = defaultVoiceIndex;
+                currentVoice = voices[defaultVoiceIndex];
+                logToConsole(`Default voice set to: ${currentVoice.name}`);
+            }
+
+            voiceSelect.addEventListener('change', () => {
+                const selectedVoiceName = voiceSelect.value;
+                currentVoice = voices.find(voice => voice.name === selectedVoiceName);
+                if (currentVoice) {
+                    logToConsole(`Voice changed to: ${currentVoice.name}`);
+                }
+            });
+        }
+
+        if (SpeechSynthesis.onvoiceschanged !== undefined) {
+            SpeechSynthesis.onvoiceschanged = populateVoiceList;
+        } else {
+            populateVoiceList();
+        }
+
+        function speak(text) {
+            if (SpeechSynthesis && currentVoice) {
+                SpeechSynthesis.cancel();
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.voice = currentVoice;
+                utterance.lang = currentVoice.lang;
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+
+                utterance.onstart = () => {
+                    updateGUI(`Jarvis: ${text}`, "speaking");
+                };
+                utterance.onend = () => {
+                    if (currentState === "speaking") {
+                        updateGUI("Ready for command...", "idle");
+                        setTimeout(listenForWakeWord, 500);
+                    }
+                };
+                utterance.onerror = (event) => {
+                    logToConsole(`Speech synthesis error: ${event.error}`);
+                    updateGUI(`Jarvis (Voice Error): ${text}`, "error");
+                    setTimeout(listenForWakeWord, 500);
+                };
+                SpeechSynthesis.speak(utterance);
+            } else {
+                updateGUI(`Jarvis (No Voice): ${text}`, "idle");
+                logToConsole("Speech synthesis not available or no voice selected.");
+                setTimeout(listenForWakeWord, 500);
+            }
+        }
+
+        function listenForWakeWord() {
+            updateGUI("Jarvis Pro is sleeping. Say 'jarvis' to wake me up.", "sleeping");
+            if (recognition) {
+                recognition.start();
+                setTimeout(() => {
+                    if (recognition && recognition.listening) {
+                        recognition.stop();
+                        updateGUI("No wake word detected, going back to sleep.", "sleeping");
+                    }
+                }, 7000);
+            } else {
+                logToConsole("Speech recognition not available for wake word.");
+            }
+        }
+
+        // --- Command Handling (All general queries now go to Gemini via Backend) ---
+        async function handleCommand(query) {
+            updateGUI(`Processing: ${query}`, "processing");
+
+            if (query.includes('jarvis')) {
+                speak("Yes, how can I help you?");
+                setTimeout(() => {
+                    if (recognition) recognition.start();
+                }, 1000);
+                return;
+            }
+
+            if (query.includes('open youtube')) {
+                speak("Opening YouTube.");
+                window.open("https://www.youtube.com", '_blank');
+            } else if (query.includes('open google')) {
+                speak("Opening Google.");
+                window.open("https://www.google.com", '_blank');
+            } else if (query.includes('open stack overflow')) {
+                speak("Opening Stack Overflow.");
+                window.open("https://stackoverflow.com", '_blank');
+            } else if (query.includes('the time')) {
+                const strTime = new Date().toLocaleTimeString('en-US');
+                speak(`Sir, the time is ${strTime}`);
+            } else if (query.includes('open code')) {
+                 speak("In a web environment, I cannot directly open desktop applications like VS Code. If you mean an online code editor, please specify.");
+            } else if (query.includes('play music')) {
+                speak("In a web environment, I cannot directly play local music files from your computer. Would you like me to open an online music streaming service like YouTube Music or Spotify web player?");
+            }
+            else if (query.includes('exit') || query.includes('quit') || query.includes('stop')) {
+                speak("Goodbye! Have a great day.");
+                updateGUI("Jarvis Pro stopped.", "idle");
+                if (recognition && recognition.listening) {
+                    recognition.stop();
+                }
+            }
+            // --- ALL OTHER QUERIES GO TO GEMINI VIA BACKEND ---
+            else {
+                speak("Let me think...");
+                updateGUI("Querying AI...", "processing");
+                try {
+                    const response = await fetch(`${BACKEND_BASE_URL}/api/gemini`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: query })
+                    });
+                    const data = await response.json();
+                    if (response.ok) {
+                        speak(data.response);
+                    } else {
+                        speak(data.error || "Sorry, I encountered an error when talking to the AI.");
+                    }
+                } catch (e) {
+                    speak("Couldn't reach the AI backend. Is the server running?");
+                    console.error("Backend Gemini fetch error:", e);
+                }
+                updateGUI("Ready for next command.", "idle");
+            }
+        }
+
+        // --- Simulated Data Readouts & Date/Time Update ---
+        function updateSimulatedData() {
+            cpuReadout.textContent = `CPU: ${Math.floor(Math.random() * 60) + 20}%`;
+            ramReadout.textContent = `RAM: ${Math.floor(Math.random() * 60) + 30}%`;
+            netReadout.textContent = `NET: ${Math.floor(Math.random() * 490) + 10}Kb/s`;
+            dateTimeReadout.textContent = new Date().toLocaleString('en-US', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false
+            });
+        }
+        setInterval(updateSimulatedData, 1000);
+
+        // --- Boot Sequence Simulation ---
+        function startBootSequence() {
+            logToConsole("Initiating web boot sequence...");
+            updateGUI("Jarvis Web Initializing...", "processing");
+
+            document.querySelectorAll('.hud-container > *').forEach(el => el.style.opacity = '0');
+            document.querySelector('.hud-container').style.opacity = '0';
+
+            let delay = 0;
+            const bootElements = [
+                document.querySelector('.hud-container'),
+                document.querySelector('.hud-border-inner'),
+                ...document.querySelectorAll('.corner-accent'),
+                document.querySelector('.jarvis-title'),
+                document.getElementById('statusDisplay'),
+                document.querySelector('.data-readouts'),
+                document.querySelector('.voice-controls'),
+                document.querySelector('.central-animation-container'),
+                document.getElementById('consoleOutput')
+            ];
+
+            bootElements.forEach((el, index) => {
+                setTimeout(() => {
+                    el.style.transition = 'opacity 0.5s ease-in';
+                    el.style.opacity = '1';
+                    if (el.classList.contains('hud-container')) {
+                        el.style.transition = 'opacity 1s ease-in';
+                    }
+                    if (index === bootElements.length - 1) {
+                        setTimeout(() => {
+                            updateGUI("Jarvis Pro is sleeping. Say 'jarvis' to wake me up.", "sleeping");
+                            if (SpeechSynthesis.getVoices().length > 0) {
+                                listenForWakeWord();
+                            } else {
+                                SpeechSynthesis.onvoiceschanged = () => {
+                                    populateVoiceList();
+                                    listenForWakeWord();
+                                };
+                            }
+                        }, 500);
+                    }
+                }, delay);
+                delay += 100;
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateSimulatedData();
+            populateVoiceList();
+            startBootSequence();
+        });
+
+    </script>
+</body>
+</html>
